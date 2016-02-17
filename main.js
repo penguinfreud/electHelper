@@ -8,19 +8,19 @@ function parseArgs() {
 	
 	for (i = 2; i<l; i++) {
 		arg = args[i];
-		if (arg == "-h" || arg == "--help") {
+		if (arg === "-h" || arg === "--help") {
 			usage();
-		} else if (arg == "-c") {
+		} else if (arg === "-c") {
 			options.config = args[++i];
-		} else if (arg == "-u") {
+		} else if (arg === "-u") {
 			options.user = args[++i];
-		} else if (arg == "-p") {
+		} else if (arg === "-p") {
 			options.password = args[++i];
-		} else if (arg == "-i") {
+		} else if (arg === "-i") {
 			options.interval = parseInt(args[++i]);
-		} else if (arg == "-e") {
+		} else if (arg === "-e") {
 			options.courses = args[++i].split(",");
-		} else if (arg == "-s") {
+		} else if (arg === "-s") {
 			options.server = parseInt(args[++i]);
 		} else {
 			console.log("unknonw option: " + arg);
@@ -49,12 +49,13 @@ function validate(options) {
 		console.log("no password specified");
 		return false;
 	}
-	if (options.interval == -1) {
+	if (options.interval === -1) {
 		options.interval = 600;
 	} else if (options.interval <= 0) {
 		console.log("invalid interval: " + interval);
 		return false;
 	}
+	return true;
 }
 
 function getOptions() {
@@ -119,13 +120,12 @@ function prepareHeaders(headers) {
 	} else {
 		headers["Cookie"] = "SVRNAME=xk" + options.server;
 	}
-	return headers;
 }
 
 function request(obj, cb, fail) {
 	++blocking;
 	
-	obj.headers = prepareHeaders(obj.headers);
+	prepareHeaders(obj.headers);
 	
 	var req = http.request(obj);
 	
@@ -140,13 +140,13 @@ function request(obj, cb, fail) {
 		var setCookie = res.headers["set-cookie"];
 		if (setCookie) {
 			var s = setCookie[0];
-			if (s.substr(0, 10) == "JSESSIONID") {
+			if (s.substr(0, 10) === "JSESSIONID") {
 				var i = s.indexOf(";");
 				sessionId = s.substring(11, i);
 				console.log("session id: " + sessionId);
 			}
 		}
-		if (res.statusCode == 302 && res.headers.location == "http://xk.fudan.edu.cn/xk/login.action") {
+		if (res.statusCode === 302 && res.headers.location === "http://xk.fudan.edu.cn/xk/login.action") {
 			login();
 			fail && process.nextTick(fail);
 			--blocking;
@@ -178,7 +178,7 @@ function login(succeed, fail) {
 			"Content-Length": body.length
 		}
 	}, function (res) {
-		if (res.statusCode == 302) {
+		if (res.statusCode === 302) {
 			loginPhase2(succeed, fail);
 		} else {
 			console.log("login failed");
@@ -223,7 +223,7 @@ function loginPhase3(succeed, fail) {
 			electedCourses = [];
 			while (true) {
 				i = data.indexOf("electedIds[\"l", i+1);
-				if (i == -1) break;
+				if (i === -1) break;
 				j = data.indexOf("\"]", i);
 				electedCourses.push(parseInt(data.substring(i + 13, j)));
 			}
@@ -236,7 +236,7 @@ function loginPhase3(succeed, fail) {
 	}, fail).end();
 }
 
-function loadData(success) {
+function loadData(succeed) {
 	if (blocking > 0) return;
 	request({
 		method: "GET",
@@ -251,7 +251,7 @@ function loadData(success) {
 			content += chunk.toString("UTF-8");
 		});
 		res.on("end", function () {
-			courseData = eval(content.substr(content.indexOf("{")));
+			courseData = eval(content.substr(content.indexOf("[")));
 			prepareData();
 			convertElectedCourses();
 			console.log("data loaded");
@@ -266,6 +266,8 @@ exports.loadData = loadData;
 
 function prepareData() {
 	var i, course;
+	byId = {};
+	byNo = {};
 	for (i = 0; i<courseData.length; i++) {
 		course = courseData[i];
 		byId[course.id] = course;
@@ -274,14 +276,15 @@ function prepareData() {
 }
 
 function convertElectedCourses() {
-	if (courseData && electedCourses.length > 0 && typeof electedCourses[0] == "number") {
+	if (courseData && electedCourses.length > 0 && typeof electedCourses[0] === "number") {
 		var i;
 		for (i = 0; i<electedCourses.length; i++) {
 			electedCourses[i] = byId[electedCourses[i]];
 		}
+	}
 }
 
-function loadCounts(success) {
+function loadCounts(succeed) {
 	if (blocking > 0) return;
 	request({
 		method: "GET",
@@ -296,7 +299,7 @@ function loadCounts(success) {
 			content += chunk.toString("UTF-8");
 		});
 		res.on("end", function () {
-			lessonCounts = eval(content.substr(content.indexOf("{")));
+			lessonCounts = eval("(" + content.substr(content.indexOf("{")) + ")");
 			process.stdout.write("@");
 			succeed && process.nextTick(succeed);
 		});
@@ -323,7 +326,7 @@ function elect(course, isQuit) {
 			"Content-Length": body.length + ""
 		}
 	}, function (res) {
-		if (res.statusCode == 200) {
+		if (res.statusCode === 200) {
 			var data = "";
 			res.on("data", function (chunk) {
 				data += chunk.toString();
@@ -344,4 +347,21 @@ function elect(course, isQuit) {
 }
 
 exports.elect = elect;
+
+function main() {
+	console.log("main");
+	getOptions();
+	console.log(options);
+	login(function () {
+		loadData(function () {
+			loadCounts();
+		});
+	});
+}
+
+exports.main = main;
+
+if (require.main === module) {
+	main();
+}
 
