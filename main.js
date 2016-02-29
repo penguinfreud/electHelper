@@ -64,18 +64,17 @@ function validate(options) {
 }
 
 function getOptions() {
-	var args = parseArgs();
+	var args = parseArgs(), key;
 	if (args.config) {
 		var json = JSON.parse(fs.readFileSync(args.config, { encoding: "UTF-8" }));
 		
-		var key;
 		for (key in json) {
 			if (options.hasOwnProperty(key)) {
 				options[key] = json[key];
 			}
 		}
 	}
-	for (var key in args) {
+	for (key in args) {
 		if (options.hasOwnProperty(key)) {
 			options[key] = args[key];
 		}
@@ -206,9 +205,9 @@ function loginPhase3(succeed, fail) {
 	request({
 		method: "GET",
 		hostname: "xk.fudan.edu.cn",
-		path: "/xk/stdElectCourse!defaultPage.action?electionProfile.id=141",
+		path: "/xk/stdElectCourse!defaultPage.action?electionProfile.id=143",
 		headers: {
-			"Referer": "http://xk.fudan.edu.cn/xk/login.action",
+			"Referer": "http://xk.fudan.edu.cn/xk/login.action"
 		}
 	}, function (res) {
 		var data = "";
@@ -238,9 +237,9 @@ function loadData(succeed) {
 	request({
 		method: "GET",
 		hostname: "xk.fudan.edu.cn",
-		path: "/xk/stdElectCourse!data.action?profileId=141",
+		path: "/xk/stdElectCourse!data.action?profileId=143",
 		headers: {
-			"Referer": "http://xk.fudan.edu.cn/xk/stdElectCourse!defaultPage.action?electionProfile.id=141"
+			"Referer": "http://xk.fudan.edu.cn/xk/stdElectCourse!defaultPage.action?electionProfile.id=143"
 		}
 	}, function (res) {
 		var content = "";
@@ -308,7 +307,7 @@ function loadCounts(succeed) {
 		 hostname: "xk.fudan.edu.cn",
 		 path: "/xk/stdElectCourse!queryStdCount.action?projectId=1&semesterId=202",
 		 headers: {
-			 "Referer": "http://xk.fudan.edu.cn/xk/stdElectCourse!defaultPage.action?electionProfile.id=141"
+			 "Referer": "http://xk.fudan.edu.cn/xk/stdElectCourse!defaultPage.action?electionProfile.id=143"
 		 }
 	}, function (res) {
 		var content = "";
@@ -367,11 +366,11 @@ function elect(course, isDrop, succeed, fail) {
 	var req = request({
 		method: "POST",
 		host: "xk.fudan.edu.cn",
-		path: "/xk/stdElectCourse!batchOperator.action?profileId=141",
+		path: "/xk/stdElectCourse!batchOperator.action?profileId=143",
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
 			"X-Requested-With": "XMLHttpRequest",
-			"Referer": "http://xk.fudan.edu.cn/xk/stdElectCourse!defaultPage.action?electionProfile.id=141",
+			"Referer": "http://xk.fudan.edu.cn/xk/stdElectCourse!defaultPage.action?electionProfile.id=143",
 			"Content-Length": body.length + ""
 		}
 	}, function (res) {
@@ -400,7 +399,7 @@ function elect(course, isDrop, succeed, fail) {
 					process.stdout.write("*");
 					resetState(course);
 					fail && fail();
-				} else if (message.indexOf("公选人数已满") >= 0) {
+				} else if (message.indexOf("公选人数已满") >= 0 || message.indexOf("The number of optional is full") >= 0) {
 					process.stdout.write("|");
 					resetState(course);
 					fail && fail();
@@ -584,12 +583,14 @@ function run(cb) {
 
 exports.run = run;
 
-var main = exports.main = function () {
+function main() {
 	getOptions();
 	run(function () {
 		setInterval(loadCounts, options.interval);
 	});
 }
+
+exports.main = main;
 
 if (require.main === module) {
 	main();
