@@ -526,7 +526,7 @@ var constraints = exports.constraints = [
 		var i, c, p1, p2;
 		for (i = 0; i<electedCourses.length; i++) {
 			c = electedCourses[i];
-			if (conflict(course, c)) {
+			if (conflict(course, c) && course !== c) {
 				p1 = wantedCourses.indexOf(course);
 				p2 = wantedCourses.indexOf(c);
 				if (p1 !== -1 && p2 !== -1 && p1 < p2) {
@@ -540,28 +540,37 @@ var constraints = exports.constraints = [
 	}
 ];
 
+var roller = 0;
+
 pollListeners.push(function () {
-	var i, j, c, count, toDrop;
+	var i, j, c, count, toElect = [], toDrop = [], _toDrop;
 	loop: for (i = 0; i<wantedCourses.length; i++) {
 		c = wantedCourses[i];
 		count = lessonCounts[c.id];
 		if (!c.state) resetState(c);
 		if (c.state === UNELECTED &&
 			count.sc < count.lc) {
-			toDrop = [];
+			_toDrop = [];
 			for (j = 0; j<constraints.length; j++) {
-				if (!constraints[j](c, toDrop)) {
-					console.log("unmet constraint");
+				if (!constraints[j](c, _toDrop)) {
 					continue loop;
 				}
 			}
-			if (toDrop.length === 0) {
-				elect(c);
-				return;
+			if (_toDrop.length === 0) {
+				toElect.push(c);
 			} else {
-				elect(toDrop[0], true);
+				elect(_toDrop[0], true);
+				setInterval(loadCounts, 350);
 				return;
 			}
+		}
+	}
+	if (toElect.length > 0) {
+		roller %= toElect.length;
+		elect(toElect[roller]);
+		roller++;
+		if (toElect.length > 1) {
+			setTimeout(loadCounts, 350);
 		}
 	}
 });
